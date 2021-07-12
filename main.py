@@ -18,6 +18,7 @@ ASCII_PERCENTAGE_FILE = "ascii_percentage.txt"
 ALL_STAT_FILE = "all_stat.txt"
 ERROR_FILE = "errors.txt"
 NEST_FILE = "nest.txt"
+BINWALK_FILE = "binwalk.txt"
 
 PAROLLED_DOCUMENT_MIME = "application/encrypted"
 PDF_DOCUMENT_MIME = "application/pdf"
@@ -35,7 +36,8 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                 "| |____| |  | |_| | |_) | || (_) | \__ \  __/  __/   <  __/ |   \n"
                 " \_____|_|   \__, | .__/ \__\___/  |___/\___|\___|_|\_\___|_|   \n"
                 "              __/ | |                                           \n"
-                "             |___/|_|                                           ")
+                "             |___/|_|                                           \n"
+                "Searches for encrypted files, archives, password-protected archives and documents")
 
 parser.add_argument('--start-path', default='.', type=str, help="directory from which the search will start")
 parser.add_argument('--ascii', action='store_true', help="calculates a percentage of ASCII printable characters")
@@ -48,7 +50,8 @@ parser.add_argument('--mode', choices=["auto", "everything", "hybrid"], type=str
                     "hybrid: will store result about parolled documents, parolled archives,"
                     " archives and encrypted files in specific files "
                     "also will generate a file with mime type, entropy and ascii percentage for this files")
-# parser.add_argument('--binwalk', action='store_true', help="Search binary images in files")
+parser.add_argument('--binwalk', action='store_true', help="Search binary images in files")
+group = parser.add_argument_group
 # parser.add_argument('--nest', type=int, default=INF, help="Marks files at (and below) the specified nesting level")
 
 args = parser.parse_args()
@@ -60,7 +63,7 @@ entropy_border = args.eb
 block_size = args.block
 mode = args.mode
 # nest_level = args.nest
-# bin_walk = args.binwalk
+bin_walk = args.binwalk
 
 print("Going to start search from '" + current_path + "'")
 
@@ -185,6 +188,22 @@ def search_crypto(path, nest_lvl):
 
                     print(file_path)
 
+                    # это на будущее
+                    # проверяем binwalk'ом на наличие сигнатур файлов
+                    
+                    if bin_walk:
+                        modules = binwalk.scan(file_path, signature=True, quiet=True)
+                        for module in modules:
+                            if len(module.results) > 0:
+
+                                out = open(BINWALK_FILE, "a")
+                                out.write("%s Results:\n" % module.name)
+
+                                for result in module.results:
+                                    out.write("\t%s    0x%.8X    %s\n" % (result.file.path, result.offset, result.description))
+
+                                out.close()
+
                     # разбиваем файл на блок и анализируем каждый блок
 
                     if block_size != None:
@@ -301,15 +320,7 @@ def search_crypto(path, nest_lvl):
                     #     out = open(NEST_FILE, "a")
                     #     out.write(file_path + "\n")
                     #     out.close()
-                        
-
-                    # это на будущее
-                    # проверяем binwalk'ом на наличие сигнатур файлов
-
-                    # for module in binwalk.scan(file_path, signature=True, quiet=True):
-                    #     print ("%s Results:" % module.name)
-                    #     for result in module.results:
-                    #         print ("\t%s    0x%.8X    %s" % (result.file.path, result.offset, result.description))
+                    
         
                 else:
                     print("No permission to open file '" + file_path + "'")
@@ -338,6 +349,7 @@ def init_work():
     open(ALL_STAT_FILE, "w").close()
     open(ERROR_FILE, "w").close()
     open(NEST_FILE, "w").close()
+    open(BINWALK_FILE, "w").close()
 
 
 # главный цикл
